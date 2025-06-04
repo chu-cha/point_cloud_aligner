@@ -13,6 +13,13 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    
+    - name: Nuclear Qt5 cleanup
+      run: |
+        sudo apt-get remove --purge -y '^qt5.*' '^libqt5.*'
+        sudo rm -rf /usr/lib/x86_64-linux-gnu/cmake/Qt5*
+        sudo rm -rf /usr/share/qt5*
+        sudo apt-get autoremove -y
 
     - name: Add Kitware repository (for VTK 9.2)
       run: |
