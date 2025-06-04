@@ -14,31 +14,23 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Nuclear Qt5 cleanup
-      run: |
-        sudo apt-get remove --purge -y '^qt5.*' '^libqt5.*'
-        sudo rm -rf /usr/lib/x86_64-linux-gnu/cmake/Qt5*
-        sudo rm -rf /usr/share/qt5*
-        sudo apt-get autoremove -y
-
-    - name: Install Qt6 stack
+    - name: Install VTK with Qt6 support
       run: |
         sudo apt-get update
         sudo apt-get install -y \
+          libvtk9-dev \
+          libvtk9-qt-dev \  # Ключевой пакет!
           qt6-base-dev \
-          libqt6opengl6-dev \
-          libvtk9-qt-dev \
           libpcl-dev \
           debhelper
 
-    - name: Configure with forced Qt6
+    - name: Configure
       run: |
         mkdir -p $BUILD_DIR
         cmake -B $BUILD_DIR -S . \
           -DCMAKE_BUILD_TYPE=Release \
-          -DQT_MAJOR_VERSION=6 \
-          -DQt5_DIR="" \
-          -DCMAKE_DISABLE_FIND_PACKAGE_Qt5=ON
+          -DVTK_QT_VERSION=6 \
+          -DQt5_DIR=""
 
     - name: Build
       run: cmake --build $BUILD_DIR --parallel $(nproc)
