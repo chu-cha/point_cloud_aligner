@@ -15,7 +15,10 @@ set(GLEW_USE_STATIC_LIBS OFF)
 find_package(GLEW REQUIRED)
 
 set(CMAKE_AUTOMOC ON)
-find_package(Qt6 REQUIRED COMPONENTS Core Widgets OpenGLWidgets) 
+set(QT_VERSION_MAJOR 6)  
+find_package(Qt6 REQUIRED COMPONENTS Core Widgets OpenGLWidgets)
+
+set(Qt5_DIR Qt5_DIR-NOTFOUND)
 
 set(VTK_GROUP_QT ON)
 find_package(VTK REQUIRED COMPONENTS
