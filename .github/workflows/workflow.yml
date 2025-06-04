@@ -1,4 +1,4 @@
-name: Build and Release
+name: Build and Release Aligner
 
 on:
   push:
@@ -7,32 +7,42 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     env:
       BUILD_DIR: ${{ github.workspace }}/build
 
     steps:
     - uses: actions/checkout@v4
 
-    - name: Install VTK with Qt6 support
+    - name: Add Kitware repository (for VTK 9.2)
       run: |
         sudo apt-get update
+        sudo apt-get install -y wget gnupg
+        wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | gpg --dearmor - | sudo tee /usr/share/keyrings/kitware-archive-keyring.gpg >/dev/null
+        echo 'deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ jammy main' | sudo tee /etc/apt/sources.list.d/kitware.list >/dev/null
+        sudo apt-get update
+
+    - name: Install dependencies
+      run: |
         sudo apt-get install -y \
-          libvtk9-dev \
-          libvtk9-qt-dev \  # Ключевой пакет!
+          build-essential \
+          cmake \
           qt6-base-dev \
+          libvtk9-dev \
+          libvtk9-qt-dev \
           libpcl-dev \
+          libglew-dev \
           debhelper
 
-    - name: Configure
+    - name: Configure project
       run: |
         mkdir -p $BUILD_DIR
         cmake -B $BUILD_DIR -S . \
           -DCMAKE_BUILD_TYPE=Release \
-          -DVTK_QT_VERSION=6 \
-          -DQt5_DIR=""
+          -DQT_VERSION_MAJOR=6 \
+          -DVTK_QT_VERSION=6
 
-    - name: Build
+    - name: Build project
       run: cmake --build $BUILD_DIR --parallel $(nproc)
 
     - name: Create DEB package
