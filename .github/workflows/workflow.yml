@@ -1,14 +1,14 @@
-name: Build and Release
+name: Build, Package and Release
 
 on:
   push:
     tags:
-      - 'v*' # Активируется при создании тегов v1.0, v2.0 и т.д.
+      - 'v*' # Trigger for release builds
     branches:
-      - main  # Для тестирования сборки на main
+      - main # Trigger for test builds
 
 jobs:
-  build-and-package:
+  build-and-deploy:
     runs-on: ubuntu-latest
     env:
       BUILD_DIR: ${{ github.workspace }}/build
@@ -45,22 +45,21 @@ jobs:
         cd $BUILD_DIR
         cpack -G DEB --config CPackConfig.cmake
 
-    - name: Create Release
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: aligner-package
+        path: ${{ env.BUILD_DIR }}/aligner-*.deb
+        retention-days: 5
+
+    - name: Create GitHub Release
       if: startsWith(github.ref, 'refs/tags/v')
-      id: create_release
       uses: softprops/action-gh-release@v1
       with:
         name: "Release ${{ github.ref_name }}"
         tag_name: ${{ github.ref_name }}
-        body: "Automatic build of Aligner ${{ github.ref_name }}"
+        body: "Automatic release of Aligner ${{ github.ref_name }}"
         draft: false
         prerelease: false
         files: |
-          $BUILD_DIR/aligner-*.deb
-
-    - name: Upload artifact (for branch builds)
-      if: github.ref == 'refs/heads/main'
-      uses: actions/upload-artifact@v3
-      with:
-        name: aligner-deb-package
-        path: $BUILD_DIR/aligner-*.deb
+          ${{ env.BUILD_DIR }}/aligner-*.deb
