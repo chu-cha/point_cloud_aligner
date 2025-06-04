@@ -3,37 +3,42 @@ name: Build and Release
 on:
   push:
     tags: ['v*']
-    branches: [ "main" ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     env:
       BUILD_DIR: ${{ github.workspace }}/build
-      QT_PREFIX: /usr/lib/x86_64-linux-gnu/cmake/Qt6
 
     steps:
     - uses: actions/checkout@v4
 
-    - name: Install dependencies
+    - name: Purge Qt5 (critical step)
+      run: |
+        sudo apt-get remove -y qt5-default || true
+        sudo apt-get autoremove -y
+
+    - name: Install Qt6 and dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y \
           build-essential \
           cmake \
           qt6-base-dev \
-          libvtk9-dev \
+          libvtk9-qt-dev \
           libpcl-dev \
           libglew-dev \
           debhelper
 
-    - name: Configure (with Qt6)
+    - name: Configure with Qt6
       run: |
         mkdir -p $BUILD_DIR
         cmake -B $BUILD_DIR -S . \
           -DCMAKE_BUILD_TYPE=Release \
-          -DQt6_DIR=$QT_PREFIX \
-          -DQt5_DIR=Qt5_DIR-NOTFOUND
+          -DQT_VERSION_MAJOR=6 \
+          -DQt5_DIR=Qt5_DIR-NOTFOUND \
+          -DVTK_QT_VERSION=6 \
+          -DPCL_QT_VERSION=6
 
     - name: Build
       run: cmake --build $BUILD_DIR --parallel $(nproc)
@@ -51,7 +56,8 @@ jobs:
       with:
         tag_name: ${{ github.ref_name }}
         release_name: "Aligner ${{ github.ref_name }}"
-        body: "Point cloud alignment tool"
+        draft: false
+        prerelease: false
 
     - name: Upload DEB package
       uses: actions/upload-release-asset@v1

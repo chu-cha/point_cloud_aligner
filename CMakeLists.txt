@@ -18,8 +18,10 @@ set(CMAKE_AUTOMOC ON)
 set(QT_VERSION_MAJOR 6)  
 find_package(Qt6 REQUIRED COMPONENTS Core Widgets OpenGLWidgets)
 
-set(Qt5_DIR Qt5_DIR-NOTFOUND)
+set(Qt5_DIR Qt5_DIR-NOTFOUND CACHE PATH "Force disable Qt5" FORCE)
 
+
+set(VTK_QT_VERSION 6)
 set(VTK_GROUP_QT ON)
 find_package(VTK REQUIRED COMPONENTS
     CommonCore
@@ -28,6 +30,7 @@ find_package(VTK REQUIRED COMPONENTS
     GUISupportQt
 )
 
+set(PCL_QT_VERSION 6)
 find_package(PCL REQUIRED COMPONENTS common io visualization)
 
 add_executable(aligner 
@@ -46,6 +49,10 @@ target_link_libraries(aligner PRIVATE
     GLEW::GLEW
     pcl_visualization 
 )
+
+message(STATUS "Using Qt version: ${Qt6_VERSION}")
+message(STATUS "Using VTK version: ${VTK_VERSION}")
+message(STATUS "Using PCL version: ${PCL_VERSION}")
 
 # Копирование DLL на Windows
 if(WIN32)
