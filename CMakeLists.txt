@@ -6,9 +6,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if(WIN32)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+	set(CMAKE_PREFIX_PATH "C:/vcpkg/installed/x64-windows")
 endif()
 
-set(CMAKE_PREFIX_PATH "C:/vcpkg/installed/x64-windows")
+set(Qt5_DIR "" CACHE PATH "Empty Qt5 dir" FORCE)
+set(QT_MAJOR_VERSION 6)
+set(CMAKE_PREFIX_PATH "/usr/lib/x86_64-linux-gnu/cmake/Qt6")
+
+# Запрещаем автоматический поиск Qt5
+option(QT_NO_AUTODETECT_QT5 "Disable Qt5 autodetection" ON)
 
 
 set(GLEW_USE_STATIC_LIBS OFF)
@@ -18,7 +24,9 @@ set(CMAKE_AUTOMOC ON)
 set(QT_VERSION_MAJOR 6)  
 find_package(Qt6 REQUIRED COMPONENTS Core Widgets OpenGLWidgets)
 
-set(Qt5_DIR Qt5_DIR-NOTFOUND CACHE PATH "Force disable Qt5" FORCE)
+if(TARGET Qt5::Core)
+    message(FATAL_ERROR "Qt5 still found! Please clean your build directory")
+endif()
 
 
 set(VTK_QT_VERSION 6)
