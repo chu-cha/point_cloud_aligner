@@ -1,16 +1,16 @@
-name: Build and Release Aligner
+name: Build and Release
 
 on:
   push:
-    tags:
-      - 'v*'  # Только для тегов v1.0, v2.0 и т.д.
+    tags: ['v*']
     branches: [ "main" ]
 
 jobs:
-  build-and-release:
+  build:
     runs-on: ubuntu-latest
     env:
       BUILD_DIR: ${{ github.workspace }}/build
+      QT_PREFIX: /usr/lib/x86_64-linux-gnu/cmake/Qt6
 
     steps:
     - uses: actions/checkout@v4
@@ -25,25 +25,23 @@ jobs:
           libvtk9-dev \
           libpcl-dev \
           libglew-dev \
-          debhelper \
-          dpkg-dev
+          debhelper
 
-    - name: Configure project
+    - name: Configure (with Qt6)
       run: |
         mkdir -p $BUILD_DIR
         cmake -B $BUILD_DIR -S . \
           -DCMAKE_BUILD_TYPE=Release \
-          -DCMAKE_PREFIX_PATH="/usr/lib/x86_64-linux-gnu/cmake/Qt6"
+          -DQt6_DIR=$QT_PREFIX \
+          -DQt5_DIR=Qt5_DIR-NOTFOUND
 
-    - name: Build project
-      run: |
-        cmake --build $BUILD_DIR --parallel $(nproc)
+    - name: Build
+      run: cmake --build $BUILD_DIR --parallel $(nproc)
 
-    - name: Generate DEB package
-      id: package
+    - name: Create DEB package
       run: |
         cd $BUILD_DIR
-        cpack -G DEB --config CPackConfig.cmake
+        cpack -G DEB
         echo "DEB_FILE=$(ls *.deb)" >> $GITHUB_ENV
 
     - name: Create Release
@@ -51,4 +49,15 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name:
+        tag_name: ${{ github.ref_name }}
+        release_name: "Aligner ${{ github.ref_name }}"
+        body: "Point cloud alignment tool"
+
+    - name: Upload DEB package
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ${{ env.BUILD_DIR }}/${{ env.DEB_FILE }}
+        asset_name: ${{ env.DEB_FILE }}
