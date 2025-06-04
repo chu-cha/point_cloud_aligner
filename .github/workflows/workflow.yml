@@ -3,9 +3,9 @@ name: Build and Release Aligner
 on:
   push:
     tags:
-      - 'v*'  # Запускать для тегов v1.0, v2.0 и т.д.
+      - 'v*'
     branches:
-      - main  # Тестовая сборка для main
+      - main
 
 jobs:
   build-and-release:
@@ -40,26 +40,22 @@ jobs:
       run: |
         cmake --build $BUILD_DIR --parallel $(nproc)
 
-    - name: Generate DEB package
+    - name: Find DEB package
+      id: find-package
       run: |
         cd $BUILD_DIR
-        cpack -G DEB --config CPackConfig.cmake
-        echo "PACKAGE_PATH=$(ls *.deb)" >> $GITHUB_ENV
-        
-    - name: Debug package path
-      run: | 
-        echo "Package path: ${{ env.PACKAGE_PATH }}"
+        PACKAGE=$(ls *.deb)
+        echo "PACKAGE_NAME=$PACKAGE" >> $GITHUB_OUTPUT
+        echo "Package: $PACKAGE"  # Debug output
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v3
       with:
         name: aligner-package
-        path: ${{ env.BUILD_DIR }}/${{ env.PACKAGE_PATH }}
-        retention-days: 5
+        path: ${{ env.BUILD_DIR }}/${{ steps.find-package.outputs.PACKAGE_NAME }}
 
     - name: Create Release
       if: startsWith(github.ref, 'refs/tags/v')
-      id: create_release
       uses: actions/create-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -70,12 +66,12 @@ jobs:
         prerelease: false
 
     - name: Upload Release Asset
-      if: steps.create_release.outputs.upload_url
+      if: success() && startsWith(github.ref, 'refs/tags/v')
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ${{ env.BUILD_DIR }}/${{ env.PACKAGE_PATH }}
-        asset_name: ${{ env.PACKAGE_PATH }}
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: ${{ env.BUILD_DIR }}/${{ steps.find-package.outputs.PACKAGE_NAME }}
+        asset_name: ${{ steps.find-package.outputs.PACKAGE_NAME }}
         asset_content_type: application/vnd.debian.binary-package
