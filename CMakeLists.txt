@@ -35,6 +35,7 @@ find_package(VTK REQUIRED COMPONENTS
     CommonCore
     InteractionStyle
     RenderingOpenGL2
+	GUISupportQt
 )
 
 if(TARGET VTK::GUISupportQt)
