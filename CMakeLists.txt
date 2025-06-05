@@ -35,16 +35,9 @@ find_package(VTK REQUIRED COMPONENTS
     CommonCore
     InteractionStyle
     RenderingOpenGL2
-	GUISupportQt
+	# GUISupportQt
 )
 
-if(TARGET VTK::GUISupportQt)
-    message(STATUS "Found VTK with Qt support")
-else()
-    message(WARNING "VTK Qt support not found - using fallback")
-    # Альтернативный рендеринг без Qt
-    set(USE_VTK_QT OFF)
-endif()
 
 set(PCL_QT_VERSION 6)
 find_package(PCL REQUIRED COMPONENTS common io visualization)
