@@ -55,27 +55,12 @@ jobs:
         
         # Пытаемся установить VTK+Qt6 из репозитория (если доступно)
         echo "=== ATTEMPTING TO INSTALL VTK ==="
-        sudo apt install -y libvtk9-dev libvtk9-qt6-dev || echo "Пакет libvtk9-qt6-dev недоступен, переходим к сборке из исходников"
+        sudo apt install -y libvtk9-dev libvtk9-qt-dev || echo "Пакет libvtk9-qt6-dev недоступен, переходим к сборке из исходников"
         
         echo "=== VTK INSTALLED FILES ==="
         ls -la /usr/lib/x86_64-linux-gnu/cmake/vtk*
         ls -la /usr/lib/x86_64-linux-gnu/libvtk*
     
-        #Если пакетов нет, собираем VTK вручную
-        if ! dpkg -l | grep -q libvtk9-qt6-dev; then
-            echo "=== BUILDING VTK FROM SOURCE ==="
-            git clone https://gitlab.kitware.com/vtk/vtk.git
-            cd vtk
-            git checkout v9.4.2 
-            cmake -B build -DVTK_GROUP_QT=ON -DVTK_QT_VERSION=6 -DQT_DIR=/usr/lib/x86_64-linux-gnu/cmake/Qt6
-            cmake --build build --parallel $(nproc)
-            sudo cmake --install build
-            
-            echo "=== VTK INSTALLATION PATHS ==="
-            ls -la /usr/local/lib/libvtk*
-            ls -la /usr/local/include/vtk*
-            ls -la /usr/local/lib/cmake/vtk*
-        fi
         
         sudo apt-get install -y \          
             libpcl-dev \
