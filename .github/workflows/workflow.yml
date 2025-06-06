@@ -14,28 +14,39 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Nuclear Qt5 cleanup
+    - name: Debug environment
       run: |
-        echo "=== BEFORE CLEANUP ==="
-        ls -la /usr/lib/x86_64-linux-gnu/cmake/ | grep -E 'Qt5|vtk'
-        dpkg -l | grep -E 'qt5|vtk|pcl'
+        echo "=== INITIAL DEBUG ==="
+        echo "Workspace: ${{ github.workspace }}"
+        echo "Runner OS: ${{ runner.os }}"
+        echo "PATH: $PATH"
+        ls -la ${{ github.workspace }}
+        echo "=== END INITIAL DEBUG ==="
+
+    - name: Cleanup old packages
+      run: |
+        echo "=== STARTING CLEANUP ==="
         
-        sudo apt purge -y libvtk7* libvtk6* qt5* libqt5*
-        sudo rm -rf /usr/lib/x86_64-linux-gnu/cmake/Qt5*
-        sudo rm -rf /usr/share/qt5*
-        sudo apt-get autoremove -y
+        # Сначала проверяем, что есть что удалять
+        echo "Qt5 packages before:"
+        dpkg -l | grep -E 'qt5|Qt5' || echo "No Qt5 packages found"
         
-        echo "=== AFTER CLEANUP ==="
-        ls -la /usr/lib/x86_64-linux-gnu/cmake/ | grep -E 'Qt5|vtk'
-        dpkg -l | grep -E 'qt5|vtk|pcl'
+        echo "VTK packages before:"
+        dpkg -l | grep -E 'vtk|Vtk' || echo "No VTK packages found"
+        
+        # Удаление с проверкой наличия
+        sudo apt purge -y --auto-remove \
+            $(apt list --installed | grep -E 'libvtk[0-9]|qt5' | cut -d'/' -f1) \
+            || echo "Nothing to purge"
+            
+        echo "=== CLEANUP COMPLETE ==="
 
     - name: Install system dependencies
       run: |
         echo "=== INSTALLING DEPENDENCIES ==="
-        echo "Current PATH: $PATH"
-        echo "LD_LIBRARY_PATH: $LD_LIBRARY_PATH"
+        set -x  # Включаем вывод выполняемых команд
         
-        sudo apt-get update
+        sudo apt-get update -qq
         sudo apt-get install -y \
             build-essential \
             cmake \
@@ -43,95 +54,75 @@ jobs:
             libqt6core6 \
             libqt6gui6 \
             libqt6widgets6 \
-            libqt6opengl6-dev 
-
-        echo "=== QT6 INSTALLED FILES ==="
-        ls -la /usr/lib/x86_64-linux-gnu/cmake/Qt6
-        ls -la /usr/lib/x86_64-linux-gnu/libQt6*
-            
-        # Проверяем доступность VTK пакетов
-        echo "=== AVAILABLE VTK PACKAGES ==="
-        apt-cache search libvtk9 | grep qt
-        
-        # Пытаемся установить VTK+Qt6 из репозитория (если доступно)
-        echo "=== ATTEMPTING TO INSTALL VTK ==="
-        sudo apt install -y libvtk9-dev libvtk9-qt-dev || echo "Пакет libvtk9-qt6-dev недоступен, переходим к сборке из исходников"
-        
-        echo "=== VTK INSTALLED FILES ==="
-        ls -la /usr/lib/x86_64-linux-gnu/cmake/vtk*
-        ls -la /usr/lib/x86_64-linux-gnu/libvtk*
-    
-        
-        sudo apt-get install -y \          
+            libqt6opengl6-dev \
             libpcl-dev \
             libglew-dev
             
-        echo "=== FINAL PACKAGE CHECK ==="
-        dpkg -l | grep -E 'qt6|vtk|pcl|glew'
-
-    - name: Add VTK to PATH
-      run: |
-        echo "=== SETTING UP PATHS ==="
-        echo "Adding /usr/local/lib to PATH"
-        echo "/usr/local/lib" >> $GITHUB_PATH
-        echo "Setting VTK_DIR=/usr/local/lib/cmake/vtk-9.4"
-        echo "VTK_DIR=/usr/local/lib/cmake/vtk-9.4" >> $GITHUB_ENV
-        echo "Current environment:"
-        printenv | grep -E 'PATH|VTK_DIR'
-
-    - name: Configure with forced Qt6
-      run: |
-        echo "=== CMAKE CONFIGURATION ==="
-        echo "Current working directory: $(pwd)"
-        echo "Build directory: $BUILD_DIR"
+        # Проверяем установленные Qt6 файлы
         echo "Qt6 files:"
-        ls -la /usr/lib/x86_64-linux-gnu/cmake/Qt6
-        echo "VTK files:"
-        ls -la $VTK_DIR || echo "VTK_DIR not set"
+        ls -la /usr/lib/x86_64-linux-gnu/cmake/Qt6* || echo "No Qt6 cmake files"
         
-        mkdir -p $BUILD_DIR
-        cmake -B $BUILD_DIR -S . \
-          -DCMAKE_BUILD_TYPE=Release \
-          -DQT_MAJOR_VERSION=6 \
-          -DQt5_DIR="" \
-          -DCMAKE_DISABLE_FIND_PACKAGE_Qt5=ON \
-          --debug-find
+        # Попытка установки VTK
+        echo "Trying to install VTK..."
+        if sudo apt install -y libvtk9-dev libvtk9-qt-dev; then
+            echo "VTK installed from packages"
+            echo "VTK files:"
+            ls -la /usr/lib/x86_64-linux-gnu/cmake/vtk*
+        else
+            echo "Building VTK from source..."
+            git clone --depth 1 --branch v9.2.6 https://gitlab.kitware.com/vtk/vtk.git
+            cd vtk
+            cmake -B build \
+                -DVTK_GROUP_QT=ON \
+                -DVTK_QT_VERSION=6 \
+                -DCMAKE_INSTALL_PREFIX=/usr/local
+            cmake --build build --parallel $(nproc)
+            sudo cmake --install build
+            echo "Installed VTK version:"
+            grep VTK_VERSION include/vtkVersionMacros.h
+        fi
         
-        echo "=== CMAKE CACHE ==="
-        cat $BUILD_DIR/CMakeCache.txt | grep -E 'Qt|VTK|PCL'
+        set +x
+        echo "=== DEPENDENCIES INSTALLED ==="
 
-    - name: Build
+    - name: Verify installations
+      run: |
+        echo "=== VERIFICATION ==="
+        echo "Qt6:"
+        ls -la /usr/lib/x86_64-linux-gnu/cmake/Qt6*/Qt6Config.cmake || echo "Qt6 not found"
+        
+        echo "VTK:"
+        ls -la /usr/local/lib/cmake/vtk-*/VTKConfig.cmake || \
+        ls -la /usr/lib/x86_64-linux-gnu/cmake/vtk-*/VTKConfig.cmake || \
+        echo "VTK not found"
+        
+        echo "PCL:"
+        ls -la /usr/lib/x86_64-linux-gnu/cmake/pcl/PCLConfig.cmake || echo "PCL not found"
+        echo "=== VERIFICATION COMPLETE ==="
+
+    - name: Configure project
+      run: |
+        echo "=== CONFIGURING ==="
+        mkdir -p $BUILD_DIR
+        cd $BUILD_DIR
+        cmake .. \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DQT_MAJOR_VERSION=6 \
+            --debug-find
+        echo "=== CONFIGURATION COMPLETE ==="
+
+    - name: Build project
       run: |
         echo "=== BUILDING ==="
-        cmake --build $BUILD_DIR --parallel $(nproc) --verbose
-        
-        echo "=== BUILT FILES ==="
-        find $BUILD_DIR -type f -executable -print
+        cd $BUILD_DIR
+        cmake --build . --parallel $(nproc) --verbose
+        echo "=== BUILD COMPLETE ==="
 
-    - name: Create DEB package
+    - name: Package
       run: |
         echo "=== PACKAGING ==="
         cd $BUILD_DIR
         cpack -G DEB --verbose
-        echo "Generated DEB packages:"
+        echo "Generated package:"
         ls -la *.deb
-        echo "DEB_FILE=$(ls *.deb)" >> $GITHUB_ENV
-
-    - name: Create Release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref_name }}
-        release_name: "Aligner ${{ github.ref_name }}"
-        draft: false
-        prerelease: false
-
-    - name: Upload DEB package
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ github.event.release.upload_url }}
-        asset_path: ${{ env.BUILD_DIR }}/${{ env.DEB_FILE }}
-        asset_name: ${{ env.DEB_FILE }}
+        echo "=== PACKAGING COMPLETE ==="
