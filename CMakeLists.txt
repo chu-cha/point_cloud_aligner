@@ -12,6 +12,7 @@ if(WIN32)
     # set(CMAKE_TOOLCHAIN_FILE "C:/vcpkg/scripts/buildsystems/vcpkg.cmake" CACHE STRING "Vcpkg toolchain file")
 else()
 	set(CMAKE_PREFIX_PATH "/usr/lib/x86_64-linux-gnu/cmake/Qt6")
+	set(VTK_DIR "/usr/local/lib/cmake/vtk-9.4") 
 endif()
 
 set(Qt5_DIR "" CACHE PATH "Empty Qt5 dir" FORCE)
