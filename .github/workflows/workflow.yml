@@ -39,7 +39,7 @@ jobs:
         sudo apt install -y libvtk9-dev libvtk9-qt6-dev || echo "Пакет libvtk9-qt6-dev недоступен, переходим к сборке из исходников"
     
         #Если пакетов нет, собираем VTK вручную
-        if !dpkg -l | grep -q libvtk9-qt6-dev; then
+        if ! dpkg -l | grep -q libvtk9-qt6-dev; then
             git clone https://gitlab.kitware.com/vtk/vtk.git
             cd vtk
             git checkout v9.2.6
