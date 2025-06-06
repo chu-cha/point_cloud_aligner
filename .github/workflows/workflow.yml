@@ -16,20 +16,27 @@ jobs:
 
     - name: Nuclear Qt5 cleanup
       run: |
-        sudo apt-get remove --purge -y '^qt5.*' '^libqt5.*'
+        
+        sudo apt purge -y libvtk7* libvtk6* qt5* libqt5*
         sudo rm -rf /usr/lib/x86_64-linux-gnu/cmake/Qt5*
         sudo rm -rf /usr/share/qt5*
         sudo apt-get autoremove -y
 
-    - name: Install Qt6 stack
+    - name: Install system dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y \
-          qt6-base-dev \
-          libqt6opengl6-dev \
-          libvtk9-dev \
-          libpcl-dev \
-          debhelper
+            build-essential \
+            cmake \
+            git \
+            libqt6core6 \
+            libqt6gui6 \
+            libqt6widgets6 \
+            libqt6opengl6-dev \
+            libvtk9-dev \
+            libvtk9-qt6-dev \
+            libpcl-dev \
+            libglew-dev
 
     - name: Configure with forced Qt6
       run: |

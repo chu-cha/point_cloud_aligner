@@ -7,18 +7,28 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if(WIN32)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 	set(CMAKE_PREFIX_PATH "C:/vcpkg/installed/x64-windows")
+	set(GLEW_ROOT "C:/vcpkg/installed/x64-windows")
+
+    # set(CMAKE_TOOLCHAIN_FILE "C:/vcpkg/scripts/buildsystems/vcpkg.cmake" CACHE STRING "Vcpkg toolchain file")
+else()
+	set(CMAKE_PREFIX_PATH "/usr/lib/x86_64-linux-gnu/cmake/Qt6")
 endif()
 
 set(Qt5_DIR "" CACHE PATH "Empty Qt5 dir" FORCE)
 set(QT_MAJOR_VERSION 6)
-set(CMAKE_PREFIX_PATH "/usr/lib/x86_64-linux-gnu/cmake/Qt6")
-
-# Запрещаем автоматический поиск Qt5
-option(QT_NO_AUTODETECT_QT5 "Disable Qt5 autodetection" ON)
-
+set(Qt5_DIR "Qt5_DIR-NOTFOUND")  # Явно сбрасываем поиск Qt5
+set(QT_NO_AUTODETECT_QT5 ON)     # Запрещаем автоопределение Qt5
 
 set(GLEW_USE_STATIC_LIBS OFF)
+set(GLEW_LIBRARY "C:/vcpkg/installed/x64-windows/bin/glew32.dll")  # Для динамической версии
+set(GLEW_INCLUDE_DIR "C:/vcpkg/installed/x64-windows/include")
 find_package(GLEW REQUIRED)
+
+if(GLEW_FOUND)
+    message(STATUS "GLEW found: ${GLEW_INCLUDE_DIRS}, ${GLEW_LIBRARIES}")
+else()
+    message(FATAL_ERROR "GLEW not found. Install it via: 'vcpkg install glew:x64-windows' (Windows) or 'sudo apt-get install libglew-dev' (Linux).")
+endif()
 
 set(CMAKE_AUTOMOC ON)
 set(QT_VERSION_MAJOR 6)  
@@ -35,8 +45,9 @@ find_package(VTK REQUIRED COMPONENTS
     CommonCore
     InteractionStyle
     RenderingOpenGL2
-	# GUISupportQt
+	GUISupportQt
 )
+
 
 
 set(PCL_QT_VERSION 6)
@@ -57,11 +68,24 @@ target_link_libraries(aligner PRIVATE
     ${PCL_LIBRARIES}
     GLEW::GLEW
     pcl_visualization 
+	VTK::GUISupportQt
 )
 
 message(STATUS "Using Qt version: ${Qt6_VERSION}")
 message(STATUS "Using VTK version: ${VTK_VERSION}")
 message(STATUS "Using PCL version: ${PCL_VERSION}")
+
+
+get_cmake_property(_vars VARIABLES)
+foreach(_var ${_vars})
+    if(_var MATCHES "Qt5")
+        message(STATUS "${_var}=${${_var}}")
+    endif()
+endforeach()
+
+if(TARGET Qt5::Core)
+    message(FATAL_ERROR "Обнаружен Qt5! Очистите кеш CMake и удалите все ссылки на Qt5")
+endif()
 
 # Копирование DLL на Windows
 if(WIN32)
