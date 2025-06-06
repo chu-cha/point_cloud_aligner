@@ -48,6 +48,13 @@ find_package(VTK REQUIRED COMPONENTS
 	GUISupportQt
 )
 
+if(NOT VTK_FOUND)
+  message(FATAL_ERROR "VTK не найден! Убедитесь, что установлен VTK с поддержкой Qt6.")
+endif()
+
+if(NOT VTK_QT_VERSION STREQUAL "6")
+  message(FATAL_ERROR "VTK собрана с Qt5, а требуется Qt6!")
+endif()
 
 
 set(PCL_QT_VERSION 6)

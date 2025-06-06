@@ -33,10 +33,23 @@ jobs:
             libqt6gui6 \
             libqt6widgets6 \
             libqt6opengl6-dev \
-            libvtk9-dev \
-            libvtk9-qt-dev \
+            #libvtk9-dev \
+            #libvtk9-qt-dev \
             libpcl-dev \
             libglew-dev
+            
+        # Пытаемся установить VTK+Qt6 из репозитория (если доступно)
+        sudo apt install -y libvtk9-dev libvtk9-qt6-dev || echo "Пакет libvtk9-qt6-dev недоступен, переходим к сборке из исходников"
+    
+        #Если пакетов нет, собираем VTK вручную
+        if !dpkg -l | grep -q libvtk9-qt6-dev; then
+            git clone https://gitlab.kitware.com/vtk/vtk.git
+            cd vtk
+            git checkout v9.2.6
+            cmake -B build -DVTK_GROUP_QT=ON -DVTK_QT_VERSION=6 -DQT_DIR=/usr/lib/x86_64-linux-gnu/cmake/Qt6
+            cmake --build build --parallel $(nproc)
+            sudo cmake --install build
+        fi
 
     - name: Configure with forced Qt6
       run: |
