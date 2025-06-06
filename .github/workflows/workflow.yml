@@ -42,7 +42,7 @@ jobs:
         if ! dpkg -l | grep -q libvtk9-qt6-dev; then
             git clone https://gitlab.kitware.com/vtk/vtk.git
             cd vtk
-            git checkout v9.5.0
+            git checkout v9.4.2 
             cmake -B build -DVTK_GROUP_QT=ON -DVTK_QT_VERSION=6 -DQT_DIR=/usr/lib/x86_64-linux-gnu/cmake/Qt6
             cmake --build build --parallel $(nproc)
             sudo cmake --install build
