@@ -34,7 +34,7 @@ jobs:
             libqt6widgets6 \
             libqt6opengl6-dev \
             libvtk9-dev \
-            libvtk9-qt6-dev \
+            libvtk9-qt-dev \
             libpcl-dev \
             libglew-dev
 
