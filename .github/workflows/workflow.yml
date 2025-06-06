@@ -64,7 +64,7 @@ jobs:
         
         # Попытка установки VTK
         echo "Trying to install VTK..."
-        if sudo apt install -y libvtk9-dev libvtk9-qt-dev; then
+        if sudo apt install -y libvtk9-dev libvtk9-qt6-dev; then
             echo "VTK installed from packages"
             echo "VTK files:"
             ls -la /usr/lib/x86_64-linux-gnu/cmake/vtk*
