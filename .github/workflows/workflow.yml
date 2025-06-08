@@ -6,7 +6,13 @@ on:
 
 jobs:
   build-and-package:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest\
+    - name: Check Ubuntu version
+      run: |
+        echo "Точная версия Ubuntu:"
+        lsb_release -a
+        echo "Детали образа:"
+        cat /etc/os-release
     
     steps:
     - name: Checkout code
@@ -43,7 +49,7 @@ jobs:
           libvtk9-dev \
           libvtk9-qt-dev \
           libpcl-dev \
-          libpcl-visualization1.12 \
+          libpcl-visualization1.14 \
           libglew-dev \
           debhelper
 
@@ -52,7 +58,7 @@ jobs:
         mkdir -p build
         cd build
         cmake .. -DCMAKE_BUILD_TYPE=Release
-        cmake --build . --config Release --parallel 2
+        cmake --build . --config Release --parallel $(nproc)
         cpack -G DEB
 
     - name: Upload artifact
