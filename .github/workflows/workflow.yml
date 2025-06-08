@@ -25,13 +25,11 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y \
-          build-essential \
-          cmake \
+          libvtk9.3 \
+          libvtk9.3-qt \
           qt6-base-dev \
-          libqt6opengl6-dev \
+          libqt6opengl6-dev
           qt6-declarative-dev \
-          libvtk9-dev \
-          libvtk9-qt-dev \
           libpcl-dev \
           libpcl-visualization1.14 \
           libglew-dev \
