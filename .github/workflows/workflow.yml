@@ -6,20 +6,31 @@ on:
 
 jobs:
   build-and-package:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
-        fetch-depth: 0  # Для работы git describe
+        fetch-depth: 0
 
-    - name: Generate tag
+    - name: Generate commit hash tag
       id: tag
       run: |
-        # Используем текущую дату или хэш коммита для тега
-        echo "TAG_NAME=release-$(date +'%Y.%m.%d')" >> $GITHUB_ENV
-        # Альтернативно: TAG_NAME=release-$(git rev-parse --short HEAD)
+        COMMIT_HASH=$(git rev-parse --short HEAD)
+        echo "TAG_NAME=commit-$COMMIT_HASH" >> $GITHUB_ENV
+        echo "Generated tag: $TAG_NAME"
+
+    - name: Debug PCL packages
+      run: |
+        echo "=== Доступные пакеты PCL visualization ==="
+        apt-cache search pcl | grep visualization || echo "PCL visualization пакеты не найдены"
+        echo ""
+        echo "=== Информация о libpcl-visualization1.12-dev ==="
+        apt-cache show libpcl-visualization1.12-dev || echo "Пакет libpcl-visualization1.12-dev не найден"
+        echo ""
+        echo "=== Альтернативные варианты ==="
+        apt-cache search '^libpcl-visualization' || echo "Нет альтернативных пакетов visualization"
 
     - name: Install dependencies
       run: |
@@ -32,11 +43,11 @@ jobs:
           libvtk9-dev \
           libvtk9-qt-dev \
           libpcl-dev \
-          libpcl-visualization-dev \
+          libpcl-visualization1.12-dev \
           libglew-dev \
           debhelper
 
-    - name: Build and package
+    - name: Configure and build
       run: |
         mkdir -p build
         cd build
@@ -44,10 +55,17 @@ jobs:
         cmake --build . --config Release --parallel 2
         cpack -G DEB
 
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: aligner-package
+        path: build/aligner*.deb
+
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
       with:
-        tag_name: ${{ env.TAG_NAME }}  # Используем сгенерированный тег
+        tag_name: ${{ env.TAG_NAME }}
+        name: "Release for ${{ env.TAG_NAME }}"
         files: build/aligner*.deb
         generate_release_notes: true
       env:
