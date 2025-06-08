@@ -6,11 +6,20 @@ on:
 
 jobs:
   build-and-package:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Для работы git describe
+
+    - name: Generate tag
+      id: tag
+      run: |
+        # Используем текущую дату или хэш коммита для тега
+        echo "TAG_NAME=release-$(date +'%Y.%m.%d')" >> $GITHUB_ENV
+        # Альтернативно: TAG_NAME=release-$(git rev-parse --short HEAD)
 
     - name: Install dependencies
       run: |
@@ -23,34 +32,22 @@ jobs:
           libvtk9-dev \
           libvtk9-qt-dev \
           libpcl-dev \
+          libpcl-visualization-dev \
           libglew-dev \
           debhelper
 
-    - name: Create build directory
-      run: cmake -E make_directory "build"
-
-    - name: Configure CMake
-      working-directory: ./build
-      run: cmake .. -DCMAKE_BUILD_TYPE=Release
-
-    - name: Build project
-      working-directory: ./build
-      run: cmake --build . --config Release --parallel $(nproc)
-
-    - name: Create DEB package
-      working-directory: ./build
-      run: cpack -G DEB
-
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: aligner-package
-        path: build/aligner*.deb
+    - name: Build and package
+      run: |
+        mkdir -p build
+        cd build
+        cmake .. -DCMAKE_BUILD_TYPE=Release
+        cmake --build . --config Release --parallel 2
+        cpack -G DEB
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
-      if: success()
       with:
+        tag_name: ${{ env.TAG_NAME }}  # Используем сгенерированный тег
         files: build/aligner*.deb
         generate_release_notes: true
       env:
