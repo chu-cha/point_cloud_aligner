@@ -23,7 +23,6 @@ jobs:
           libvtk9-dev \
           libvtk9-qt-dev \
           libpcl-dev \
-          libpcl-visualization-dev \
           libglew-dev \
           debhelper
 
