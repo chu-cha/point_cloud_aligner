@@ -25,11 +25,13 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y \
-          libvtk9.3 \
-          libvtk9.3-qt \
+          build-essential \
+          cmake \
           qt6-base-dev \
-          libqt6opengl6-dev
+          libqt6opengl6-dev \
           qt6-declarative-dev \
+          libvtk9-dev \
+          libvtk9-qt-dev \
           libpcl-dev \
           libpcl-visualization1.14 \
           libglew-dev \
@@ -39,7 +41,9 @@ jobs:
         echo "Установленная версия VTK:"
         dpkg -l | grep libvtk9
         echo "Пути :"
+        apt-cache show libvtk9-dev | grep Version
         ls /usr/lib/cmake/  # Должна быть папка vtk-9.3
+        
 
     - name: Configure and build
       run: |
