@@ -41,8 +41,6 @@ jobs:
 
     - name: Install dependencies
       run: |
-        # Добавляем репозиторий Kitware
-        wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc | sudo gpg --dearmor -o /usr/share/keyrings/kitware-archive-keyring.gpg echo "deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/kitware.list
         
         sudo apt-get update
         sudo apt-get install -y \
@@ -51,8 +49,8 @@ jobs:
           qt6-base-dev \
           libqt6opengl6-dev \
           qt6-declarative-dev \
-          libvtk9-dev=9.3.* \
-          libvtk9-qt-dev=9.3.* \
+          libvtk9-dev=9.3.0+dfsg-5ubuntu1 \
+          libvtk9-qt-dev=9.3.0+dfsg-5ubuntu1 \
           libpcl-dev \
           libpcl-visualization1.14 \
           libglew-dev \
