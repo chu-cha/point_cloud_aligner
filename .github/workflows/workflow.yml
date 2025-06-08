@@ -9,16 +9,16 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Check Ubuntu version
-      run: |
-        echo "Точная версия Ubuntu:"
-        lsb_release -a
-        echo "Детали образа:"
-        cat /etc/os-release
     - name: Checkout code
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
+    - name: Add Kitware PPA (для VTK 9.3)
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y software-properties-common
+        sudo add-apt-repository -y ppa:kitware/ppa
+        sudo apt-get update
 
     - name: Generate commit hash tag
       id: tag
@@ -26,17 +26,6 @@ jobs:
         COMMIT_HASH=$(git rev-parse --short HEAD)
         echo "TAG_NAME=commit-$COMMIT_HASH" >> $GITHUB_ENV
         echo "Generated tag: $TAG_NAME"
-
-    - name: Debug PCL packages
-      run: |
-        echo "=== Доступные пакеты PCL visualization ==="
-        apt-cache search pcl | grep visualization || echo "PCL visualization пакеты не найдены"
-        echo ""
-        echo "=== Информация о libpcl-visualization1.12-dev ==="
-        apt-cache show libpcl-visualization1.12-dev || echo "Пакет libpcl-visualization1.12-dev не найден"
-        echo ""
-        echo "=== Альтернативные варианты ==="
-        apt-cache search '^libpcl-visualization' || echo "Нет альтернативных пакетов visualization"
 
     - name: Install dependencies
       run: |
@@ -46,18 +35,24 @@ jobs:
           cmake \
           qtbase5-dev \
           libqt5opengl5-dev \
-          libvtk9-dev \
+          libvtk9-dev=9.3.* \
           libvtk9-qt-dev \
           libpcl-dev \
           libpcl-visualization1.14 \
           libglew-dev \
           debhelper
+    - name: Проверить версию VTK
+      run: |
+        echo "Установленная версия VTK:"
+        dpkg -l | grep libvtk9
+        echo "Пути VTK 9.3:"
+        ls /usr/lib/cmake/vtk-9.3  # Должна быть папка vtk-9.3
 
     - name: Configure and build
       run: |
         mkdir -p build
         cd build
-        cmake .. -DCMAKE_BUILD_TYPE=Release
+        cmake .. -DCMAKE_BUILD_TYPE=Release -DVTK_DIR=/usr/lib/cmake/vtk-9.3
         cmake --build . --config Release --parallel $(nproc)
         cpack -G DEB
 
