@@ -40,8 +40,8 @@ jobs:
       run: |
         echo "Установленная версия VTK:"
         dpkg -l | grep libvtk9
-        echo "Пути VTK 9.3:"
-        ls /usr/lib/cmake/vtk-9.3  # Должна быть папка vtk-9.3
+        echo "Пути :"
+        ls /usr/lib/cmake/  # Должна быть папка vtk-9.3
 
     - name: Configure and build
       run: |
