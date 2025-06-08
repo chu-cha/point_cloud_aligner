@@ -27,10 +27,10 @@ jobs:
         sudo apt-get install -y \
           build-essential \
           cmake \
-          qtbase5-dev \
-          libqt5opengl5-dev \
-          libvtk9.3-dev \
-          libvtk9.3-qt-dev \
+          qt6-base-dev \
+          qt6-opengl-dev \
+          libvtk9-dev \
+          libvtk9-qt-dev \
           libpcl-dev \
           libpcl-visualization1.14 \
           libglew-dev \
