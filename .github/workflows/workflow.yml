@@ -13,6 +13,24 @@ jobs:
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
+        
+    - name: Detect Ubuntu version
+      id: detect_os
+      run: |
+        UBUNTU_VERSION=$(lsb_release -sr)
+        echo "Ubuntu version: $UBUNTU_VERSION"
+        echo "UBUNTU_VERSION=$UBUNTU_VERSION" >> $GITHUB_ENV
+        
+        if [ "$UBUNTU_VERSION" == "22.04" ]; then
+          echo "VTK_VERSION=9.1" >> $GITHUB_ENV
+          echo "QT_VERSION=5" >> $GITHUB_ENV
+        elif [ "$UBUNTU_VERSION" == "24.04" ]; then
+          echo "VTK_VERSION=9.3" >> $GITHUB_ENV
+          echo "QT_VERSION=6" >> $GITHUB_ENV
+        else
+          echo "Unsupported Ubuntu version"
+          exit 1
+        fi
 
     - name: Generate commit hash tag
       id: tag
