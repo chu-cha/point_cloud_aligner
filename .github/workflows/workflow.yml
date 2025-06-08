@@ -19,18 +19,24 @@ jobs:
       run: |
         COMMIT_HASH=$(git rev-parse --short HEAD)
         echo "TAG_NAME=commit-$COMMIT_HASH" >> $GITHUB_ENV
-        echo "Generated tag: $TAG_NAME"
 
-    - name: Debug PCL packages
+    - name: Detect PCL visualization package
+      id: detect-pcl
       run: |
-        echo "=== Доступные пакеты PCL visualization ==="
-        apt-cache search pcl | grep visualization || echo "PCL visualization пакеты не найдены"
-        echo ""
-        echo "=== Информация о libpcl-visualization1.12-dev ==="
-        apt-cache show libpcl-visualization1.12-dev || echo "Пакет libpcl-visualization1.12-dev не найден"
-        echo ""
-        echo "=== Альтернативные варианты ==="
-        apt-cache search '^libpcl-visualization' || echo "Нет альтернативных пакетов visualization"
+        # Ищем пакет visualization
+        PKG_NAME=$(apt-cache search --names-only '^libpcl-visualization' | awk '{print $1}' | head -1)
+        
+        if [ -z "$PKG_NAME" ]; then
+          echo "::warning::PCL visualization package not found in apt!"
+          echo "PKG_NAME=libpcl-visualization1.12-dev" >> $GITHUB_ENV  # Fallback
+        else
+          echo "Found PCL visualization package: $PKG_NAME"
+          echo "PKG_NAME=$PKG_NAME" >> $GITHUB_ENV
+        fi
+        
+        # Дополнительная диагностика
+        echo "=== Available PCL visualization packages ==="
+        apt-cache search --names-only '^libpcl-visualization' || true
 
     - name: Install dependencies
       run: |
@@ -43,9 +49,13 @@ jobs:
           libvtk9-dev \
           libvtk9-qt-dev \
           libpcl-dev \
-          libpcl-visualization1.12-dev \
+          ${{ env.PKG_NAME }} \  # Динамически подставляем найденное имя пакета
           libglew-dev \
           debhelper
+
+        # Проверяем что пакет действительно установился
+        echo "=== Installed PCL visualization package ==="
+        dpkg -l | grep pcl-visualization || echo "::warning::PCL visualization not installed!"
 
     - name: Configure and build
       run: |
