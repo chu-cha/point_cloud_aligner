@@ -28,7 +28,8 @@ jobs:
           build-essential \
           cmake \
           qt6-base-dev \
-          qt6-opengl-dev \
+          libqt6opengl6-dev \
+          qt6-declarative-dev \
           libvtk9-dev \
           libvtk9-qt-dev \
           libpcl-dev \
