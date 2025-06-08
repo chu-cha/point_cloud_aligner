@@ -10,7 +10,7 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4  # Обновлено до v4
+      uses: actions/checkout@v4
 
     - name: Install dependencies
       run: |
@@ -21,9 +21,9 @@ jobs:
           qtbase5-dev \
           libqt5opengl5-dev \
           libvtk9-dev \
-          libvtk9-qt-dev \      # Для VTK::GUISupportQt
-          libpcl-dev \          # Базовые компоненты PCL
-          libpcl-visualization-dev \  # Для pcl_visualization
+          libvtk9-qt-dev \
+          libpcl-dev \
+          libpcl-visualization-dev \
           libglew-dev \
           debhelper
 
@@ -36,35 +36,23 @@ jobs:
 
     - name: Build project
       working-directory: ./build
-      run: cmake --build . --config Release --parallel 2
+      run: cmake --build . --config Release --parallel $(nproc)
 
     - name: Create DEB package
       working-directory: ./build
       run: cpack -G DEB
 
     - name: Upload artifact
-      uses: actions/upload-artifact@v4  # Обновлено до v4
+      uses: actions/upload-artifact@v4
       with:
         name: aligner-package
         path: build/aligner*.deb
 
-    - name: Create Release
-      id: create_release
-      uses: actions/create-release@v2  # Обновлено до v2
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      if: success()
+      with:
+        files: build/aligner*.deb
+        generate_release_notes: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: release-${{ github.run_id }}
-        release_name: Release ${{ github.run_id }}
-        draft: false
-        prerelease: false
-
-    - name: Upload Release Asset
-      uses: actions/upload-release-asset@v2  # Обновлено до v2
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: build/aligner*.deb
-        asset_name: aligner.deb
-        asset_content_type: application/vnd.debian.binary-package
