@@ -29,8 +29,8 @@ jobs:
           cmake \
           qtbase5-dev \
           libqt5opengl5-dev \
-          libvtk9-dev \
-          libvtk9-qt-dev \
+          libvtk9.3-dev \
+          libvtk9.3-qt-dev \
           libpcl-dev \
           libpcl-visualization1.14 \
           libglew-dev \
