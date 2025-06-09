@@ -65,7 +65,7 @@ jobs:
         # Используем ccache для ускорения компиляции
         export PATH="/usr/lib/ccache:$PATH"
         
-        git clone https://gitlab.kitware.com/vtk/vtk.git --branch v${{ env.VTK_VERSION }} --depth 1
+        git clone https://gitlab.kitware.com/vtk/vtk.git --branch v9.3.0 --depth 1
         mkdir -p vtk/build && cd vtk/build
         
         cmake -GNinja \
