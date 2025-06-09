@@ -31,6 +31,17 @@ jobs:
           echo "Unsupported Ubuntu version"
           exit 1
         fi
+        
+    - name: Cache VTK build
+      if: env.UBUNTU_VERSION == '24.04'
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.ccache
+          vtk/build
+        key: vtk-${{ env.VTK_VERSION }}-${{ runner.os }}-${{ hashFiles('CMakeLists.txt') }}
+        restore-keys: |
+          vtk-${{ env.VTK_VERSION }}-${{ runner.os }}-
 
     - name: Generate commit hash tag
       id: tag
@@ -48,18 +59,18 @@ jobs:
           libxt-dev libgl1-mesa-dev \
           ninja-build
 
-    - name: Clone VTK
+    - name: Build VTK from source (Ubuntu 24.04 only)
+      if: env.UBUNTU_VERSION == '24.04'
       run: |
-        git clone https://gitlab.kitware.com/vtk/vtk.git --branch v9.3.0 --depth 1
-        echo "VTK cloned to $PWD/vtk"  # Отладочный вывод
-
-    - name: Build VTK
-      run: |
+        # Используем ccache для ускорения компиляции
+        export PATH="/usr/lib/ccache:$PATH"
+        
+        git clone https://gitlab.kitware.com/vtk/vtk.git --branch v${{ env.VTK_VERSION }} --depth 1
         mkdir -p vtk/build && cd vtk/build
         
         cmake -GNinja \
           -DVTK_GROUP_QT=ON \
-          -DVTK_QT_VERSION=6 \
+          -DVTK_QT_VERSION=${{ env.QT_VERSION }} \
           -DVTK_BUILD_TESTING=OFF \
           -DVTK_WRAP_PYTHON=OFF \
           -DCMAKE_BUILD_TYPE=Release \
@@ -72,14 +83,25 @@ jobs:
 
    
         
-    - name: Проверить версию VTK
+    - name: Verify VTK installation
       run: |
-        echo "Установленная версия VTK:"
-        dpkg -l | grep libvtk9
-        echo "Пути :"
-        apt-cache show libvtk9-dev | grep Version
-        ls /usr/lib/cmake/  # Должна быть папка vtk-9.3
+        echo "=== Проверка VTK ==="
         
+        # Для сборки из исходников (Ubuntu 24.04)
+        if [ "${{ env.UBUNTU_VERSION }}" == "24.04" ]; then
+          echo "Версия VTK из исходников:"
+          grep "VTK_VERSION" /usr/local/lib/cmake/vtk-9.3/VTKConfigVersion.cmake || echo "VTK не найден в /usr/local"
+          ls /usr/local/lib/cmake/vtk-9.3 || echo "Директория VTK не существует"
+        
+        # Для системных пакетов (Ubuntu 22.04)
+        else
+          echo "Версия VTK из пакетов:"
+          dpkg -l | grep libvtk9 || echo "Пакеты VTK не найдены"
+        fi
+        
+        echo "=== Пути CMake ==="
+        ls /usr/local/lib/cmake/ /usr/lib/cmake/ | grep -i vtk || echo "VTK не найден в стандартных путях"
+            
 
     - name: Configure and build
       run: |
