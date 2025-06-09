@@ -39,22 +39,33 @@ jobs:
         echo "TAG_NAME=commit-$COMMIT_HASH" >> $GITHUB_ENV
         echo "Generated tag: $TAG_NAME"
 
-    - name: Install dependencies
+    - name: Install minimal dependencies
       run: |
-        
         sudo apt-get update
         sudo apt-get install -y \
-          build-essential \
-          cmake \
-          qt6-base-dev \
-          libqt6opengl6-dev \
-          qt6-declarative-dev \
-          libvtk9-dev=9.3.0+dfsg-5ubuntu1 \
-          libvtk9-qt-dev=9.3.0+dfsg-5ubuntu1 \
-          libpcl-dev \
-          libpcl-visualization1.14 \
-          libglew-dev \
-          debhelper
+          git cmake build-essential \
+          qt6-base-dev libqt6opengl6-dev \
+          libxt-dev libgl1-mesa-dev \
+          ninja-build
+
+    - name: Build VTK without Python
+      run: |
+        git clone https://gitlab.kitware.com/vtk/vtk.git --branch v9.3.0 --depth 1
+        mkdir vtk/build && cd vtk/build
+        
+        cmake -GNinja \
+          -DVTK_GROUP_QT=ON \
+          -DVTK_QT_VERSION=6 \
+          -DVTK_BUILD_TESTING=OFF \
+          -DVTK_WRAP_PYTHON=OFF \          # Отключаем Python
+          -DVTK_MODULE_USE_EXTERNAL_VTK_pugixml=ON \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_INSTALL_PREFIX=/usr/local \
+          ..
+        
+        ninja
+        sudo ninja install
+        sudo ldconfig
     - name: Проверить версию VTK
       run: |
         echo "Установленная версия VTK:"
