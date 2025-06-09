@@ -48,17 +48,20 @@ jobs:
           libxt-dev libgl1-mesa-dev \
           ninja-build
 
-    - name: Build VTK without Python
+    - name: Clone VTK
       run: |
         git clone https://gitlab.kitware.com/vtk/vtk.git --branch v9.3.0 --depth 1
-        mkdir vtk/build && cd vtk/build
+        echo "VTK cloned to $PWD/vtk"  # Отладочный вывод
+
+    - name: Build VTK
+      run: |
+        mkdir -p vtk/build && cd vtk/build
         
         cmake -GNinja \
           -DVTK_GROUP_QT=ON \
           -DVTK_QT_VERSION=6 \
           -DVTK_BUILD_TESTING=OFF \
-          -DVTK_WRAP_PYTHON=OFF \          # Отключаем Python
-          -DVTK_MODULE_USE_EXTERNAL_VTK_pugixml=ON \
+          -DVTK_WRAP_PYTHON=OFF \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_INSTALL_PREFIX=/usr/local \
           ..
@@ -66,6 +69,9 @@ jobs:
         ninja
         sudo ninja install
         sudo ldconfig
+
+   
+        
     - name: Проверить версию VTK
       run: |
         echo "Установленная версия VTK:"
@@ -79,7 +85,7 @@ jobs:
       run: |
         mkdir -p build
         cd build
-        cmake .. -DCMAKE_BUILD_TYPE=Release -DVTK_DIR=/usr/lib/cmake/vtk-9.3
+        cmake .. -DCMAKE_BUILD_TYPE=Release -DVTK_DIR=/usr/local/lib/cmake/vtk-9.3 -DQt6_DIR=/usr/lib/cmake/Qt6
         cmake --build . --config Release --parallel $(nproc)
         cpack -G DEB
 
