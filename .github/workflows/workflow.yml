@@ -22,7 +22,7 @@ jobs:
         echo "Generated tag: $TAG_NAME"
 
     # 1. Кэширование VTK
-    - name: Cache VTK build
+    - name: Setup cache
       id: cache-vtk
       uses: actions/cache@v3
       with:
@@ -30,7 +30,9 @@ jobs:
           /usr/local/lib/cmake/vtk-9.3
           /usr/local/include/vtk-9.3
           /usr/local/lib/libvtk*
-        key: vtk-${{ runner.os }}-${{ hashFiles('CMakeLists.txt') }}
+        key: vtk-9.3-${{ runner.os }}-${{ github.sha }}
+        restore-keys: |
+          vtk-9.3-${{ runner.os }}-
 
     # 2. Установка системных зависимостей
     - name: Install core dependencies
