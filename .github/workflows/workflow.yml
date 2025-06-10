@@ -80,27 +80,34 @@ jobs:
         ninja
         sudo ninja install
         sudo ldconfig
+        
+        sudo apt-get install -y \
+        libpcl \
+        libpcl-visualization1.14
+        
+        # Установка GLEW
+        sudo apt-get install -y \
+        libglew-dev
+        debhelper \
+        dpkg-dev
+    
+    # Дополнительные инструменты для сборки пакетов
+    sudo apt-get install -y \
+      debhelper \
+      dpkg-dev
 
    
         
     - name: Verify VTK installation
       run: |
         echo "=== Проверка VTK ==="
-        
-        # Для сборки из исходников (Ubuntu 24.04)
-        if [ "${{ env.UBUNTU_VERSION }}" == "24.04" ]; then
-          echo "Версия VTK из исходников:"
-          grep "VTK_VERSION" /usr/local/lib/cmake/vtk-9.3/VTKConfigVersion.cmake || echo "VTK не найден в /usr/local"
-          ls /usr/local/lib/cmake/vtk-9.3 || echo "Директория VTK не существует"
-        
-        # Для системных пакетов (Ubuntu 22.04)
-        else
-          echo "Версия VTK из пакетов:"
-          dpkg -l | grep libvtk9 || echo "Пакеты VTK не найдены"
-        fi
-        
         echo "=== Пути CMake ==="
         ls /usr/local/lib/cmake/ /usr/lib/cmake/ | grep -i vtk || echo "VTK не найден в стандартных путях"
+        echo "=== PCL Version ==="
+        dpkg -l | grep libpcl
+        echo "=== GLEW Version ==="
+        dpkg -l | grep libglew
+       
             
 
     - name: Configure and build
