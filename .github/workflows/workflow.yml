@@ -6,42 +6,13 @@ on:
 
 jobs:
   build-and-package:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
-        fetch-depth: 0
-        
-    - name: Detect Ubuntu version
-      id: detect_os
-      run: |
-        UBUNTU_VERSION=$(lsb_release -sr)
-        echo "Ubuntu version: $UBUNTU_VERSION"
-        echo "UBUNTU_VERSION=$UBUNTU_VERSION" >> $GITHUB_ENV
-        
-        if [ "$UBUNTU_VERSION" == "22.04" ]; then
-          echo "VTK_VERSION=9.1" >> $GITHUB_ENV
-          echo "QT_VERSION=5" >> $GITHUB_ENV
-        elif [ "$UBUNTU_VERSION" == "24.04" ]; then
-          echo "VTK_VERSION=9.3" >> $GITHUB_ENV
-          echo "QT_VERSION=6" >> $GITHUB_ENV
-        else
-          echo "Unsupported Ubuntu version"
-          exit 1
-        fi
-        
-    - name: Cache VTK build
-      if: env.UBUNTU_VERSION == '24.04'
-      uses: actions/cache@v3
-      with:
-        path: |
-          ~/.ccache
-          vtk/build
-        key: vtk-${{ env.VTK_VERSION }}-${{ runner.os }}-${{ hashFiles('CMakeLists.txt') }}
-        restore-keys: |
-          vtk-${{ env.VTK_VERSION }}-${{ runner.os }}-
+        fetch-depth: 0  # Необходимо для git rev-parse
 
     - name: Generate commit hash tag
       id: tag
@@ -50,27 +21,37 @@ jobs:
         echo "TAG_NAME=commit-$COMMIT_HASH" >> $GITHUB_ENV
         echo "Generated tag: $TAG_NAME"
 
-    - name: Install minimal dependencies
+    # 1. Кэширование VTK
+    - name: Cache VTK build
+      id: cache-vtk
+      uses: actions/cache@v3
+      with:
+        path: |
+          /usr/local/lib/cmake/vtk-9.3
+          /usr/local/include/vtk-9.3
+          /usr/local/lib/libvtk*
+        key: vtk-${{ runner.os }}-${{ hashFiles('CMakeLists.txt') }}
+
+    # 2. Установка системных зависимостей
+    - name: Install core dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y \
           git cmake build-essential \
           qt6-base-dev libqt6opengl6-dev \
           libxt-dev libgl1-mesa-dev \
-          ninja-build
+          ninja-build ccache
 
-    - name: Build VTK from source (Ubuntu 24.04 only)
-      if: env.UBUNTU_VERSION == '24.04'
+    # 3. Сборка VTK (если нет в кэше)
+    - name: Build VTK from source
+      if: steps.cache-vtk.outputs.cache-hit != 'true'
       run: |
-        # Используем ccache для ускорения компиляции
-        export PATH="/usr/lib/ccache:$PATH"
-        
         git clone https://gitlab.kitware.com/vtk/vtk.git --branch v9.3.0 --depth 1
-        mkdir -p vtk/build && cd vtk/build
+        mkdir vtk/build && cd vtk/build
         
         cmake -GNinja \
           -DVTK_GROUP_QT=ON \
-          -DVTK_QT_VERSION=${{ env.QT_VERSION }} \
+          -DVTK_QT_VERSION=6 \
           -DVTK_BUILD_TESTING=OFF \
           -DVTK_WRAP_PYTHON=OFF \
           -DCMAKE_BUILD_TYPE=Release \
@@ -80,53 +61,50 @@ jobs:
         ninja
         sudo ninja install
         sudo ldconfig
-        
-        sudo apt-get install -y \
-        libpcl \
-        libpcl-visualization1.14
-        
-        # Установка GLEW
-        sudo apt-get install -y \
-        libglew-dev
-        
-        # Дополнительные инструменты для сборки пакетов
-        sudo apt-get install -y \
-        debhelper \
-        dpkg-dev
 
-   
-        
-    - name: Verify VTK installation
+    # 4. Установка PCL и GLEW (после VTK)
+    - name: Install PCL and GLEW
       run: |
-        echo "=== Проверка VTK ==="
-        echo "=== Пути CMake ==="
-        ls /usr/local/lib/cmake/ /usr/lib/cmake/ | grep -i vtk || echo "VTK не найден в стандартных путях"
-        echo "=== PCL Version ==="
-        dpkg -l | grep libpcl
-        echo "=== GLEW Version ==="
-        dpkg -l | grep libglew
-       
-            
+        sudo apt-get install -y \
+          libpcl-dev=1.14.0+dfsg-1ubuntu1 \
+          libpcl-visualization1.14=1.14.0+dfsg-1ubuntu1 \
+          libglew-dev=2.2.0-5
 
-    - name: Configure and build
+    # 5. Проверка версий
+    - name: Verify installations
       run: |
-        mkdir -p build
-        cd build
-        cmake .. -DCMAKE_BUILD_TYPE=Release -DVTK_DIR=/usr/local/lib/cmake/vtk-9.3 -DQt6_DIR=/usr/lib/cmake/Qt6
-        cmake --build . --config Release --parallel $(nproc)
+        echo "=== VTK ==="
+        grep "VTK_VERSION" /usr/local/lib/cmake/vtk-9.3/VTKConfigVersion.cmake || echo "VTK not found"
+        echo "=== PCL ==="
+        dpkg -l | grep libpcl || echo "PCL not installed"
+        echo "=== GLEW ==="
+        dpkg -l | grep libglew || ls /usr/lib/x86_64-linux-gnu/libGLEW*
+
+    # 6. Сборка проекта
+    - name: Build project
+      run: |
+        mkdir build && cd build
+        cmake .. \
+          -DVTK_DIR=/usr/local/lib/cmake/vtk-9.3 \
+          -DQt6_DIR=/usr/lib/cmake/Qt6 \
+          -DPCL_DIR=/usr/share/pcl-1.14 \
+          -DGLEW_ROOT=/usr \
+          -DCMAKE_BUILD_TYPE=Release
+        cmake --build . --parallel $(nproc)
         cpack -G DEB
 
+    # 7. Публикация результатов
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: aligner-package
+        name: aligner-package-${{ env.TAG_NAME }}
         path: build/aligner*.deb
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v1
       with:
         tag_name: ${{ env.TAG_NAME }}
-        name: "Release for ${{ env.TAG_NAME }}"
+        name: "Release ${{ env.TAG_NAME }}"
         files: build/aligner*.deb
         generate_release_notes: true
       env:
