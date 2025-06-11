@@ -8,6 +8,8 @@ if(WIN32)
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 	set(CMAKE_PREFIX_PATH "C:/vcpkg/installed/x64-windows")
 	set(GLEW_ROOT "C:/vcpkg/installed/x64-windows")
+	set(GLEW_LIBRARY "C:/vcpkg/installed/x64-windows/bin/glew32.dll")  # Для динамической версии
+	set(GLEW_INCLUDE_DIR "C:/vcpkg/installed/x64-windows/include")
 
     # set(CMAKE_TOOLCHAIN_FILE "C:/vcpkg/scripts/buildsystems/vcpkg.cmake" CACHE STRING "Vcpkg toolchain file")
 else()
@@ -21,8 +23,6 @@ set(Qt5_DIR "Qt5_DIR-NOTFOUND")  # Явно сбрасываем поиск Qt5
 set(QT_NO_AUTODETECT_QT5 ON)     # Запрещаем автоопределение Qt5
 
 set(GLEW_USE_STATIC_LIBS OFF)
-set(GLEW_LIBRARY "C:/vcpkg/installed/x64-windows/bin/glew32.dll")  # Для динамической версии
-set(GLEW_INCLUDE_DIR "C:/vcpkg/installed/x64-windows/include")
 find_package(GLEW REQUIRED)
 
 if(GLEW_FOUND)
