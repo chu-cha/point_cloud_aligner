@@ -87,7 +87,15 @@ jobs:
           echo "WARNING: Основные конфигурационные файлы VTK не найдены"
           # Не завершаем с ошибкой, так как возможно другая структура установки
         fi
-    # 5. Сборка проекта
+        
+    # 6. Установка PCL и GLEW
+    - name: Install PCL and GLEW
+      run: |
+        sudo apt-get install -y \
+          libpcl-dev libpcl-visualization1.14 \
+          libglew-dev
+          
+    # 7. Сборка проекта
     - name: Build project
       run: |
         mkdir build && cd build
