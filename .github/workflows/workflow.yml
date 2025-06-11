@@ -56,6 +56,7 @@ jobs:
           -DVTK_QT_VERSION=6 \
           -DVTK_BUILD_TESTING=OFF \
           -DVTK_WRAP_PYTHON=OFF \
+          -DVTK_MODULE_ENABLE_VTK_GUISupportQt=YES \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_INSTALL_PREFIX=/usr/local \
           ..
@@ -76,6 +77,10 @@ jobs:
       run: |
         echo "=== VTK ==="
         grep "VTK_VERSION" /usr/local/lib/cmake/vtk-9.3/VTKConfigVersion.cmake || echo "VTK not found"
+        echo "Installed VTK components:"
+        ls /usr/local/lib/cmake/vtk-9.3 | grep Qt
+        echo "GUISupportQt exists:"
+        ls /usr/local/lib/libvtkGUISupportQt* || echo "GUISupportQt not found!"
         echo "=== PCL ==="
         dpkg -l | grep libpcl || echo "PCL not installed"
         echo "=== GLEW ==="
