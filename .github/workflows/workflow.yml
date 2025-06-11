@@ -12,29 +12,15 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       with:
-        fetch-depth: 0  # Необходимо для git rev-parse
+        fetch-depth: 0
 
     - name: Generate commit hash tag
       id: tag
       run: |
         COMMIT_HASH=$(git rev-parse --short HEAD)
         echo "TAG_NAME=commit-$COMMIT_HASH" >> $GITHUB_ENV
-        echo "Generated tag: $TAG_NAME"
 
-    # 1. Кэширование VTK
-    - name: Setup cache
-      id: cache-vtk
-      uses: actions/cache@v3
-      with:
-        path: |
-          /usr/local/lib/cmake/vtk-9.3
-          /usr/local/include/vtk-9.3
-          /usr/local/lib/libvtk*
-        key: vtk-9.3-${{ runner.os }}-${{ github.run_id }}
-        restore-keys: |
-          vtk-9.3-${{ runner.os }}-
-
-    # 2. Установка системных зависимостей
+    # 1. Установка системных зависимостей (включая обязательные для VTK)
     - name: Install core dependencies
       run: |
         sudo apt-get update
@@ -42,75 +28,68 @@ jobs:
           git cmake build-essential \
           qt6-base-dev libqt6opengl6-dev \
           libxt-dev libgl1-mesa-dev \
-          ninja-build ccache
+          ninja-build ccache \
+          libfreetype-dev libfontconfig-dev \
+          libboost-all-dev libeigen3-dev \
+          libhdf5-dev libjsoncpp-dev \
+          liblz4-dev liblzma-dev libtiff-dev
 
-    # 3. Очистка старых версий VTK
+    # 2. Полная очистка возможных предыдущих установок VTK
     - name: Clean old VTK installations
-      if: steps.cache-vtk.outputs.cache-hit != 'true'
       run: |
         sudo rm -rf /usr/local/include/vtk-* \
                     /usr/local/lib/cmake/vtk-* \
-                    /usr/local/lib/libvtk*
+                    /usr/local/lib/libvtk* \
+                    ~/vtk
 
-    # 4. Сборка VTK (если нет в кэше)
-    - name: Build VTK from source
-      if: steps.cache-vtk.outputs.cache-hit != 'true'
+    # 3. Сборка VTK с дополнительными модулями
+    - name: Build and install VTK
       run: |
         git clone https://gitlab.kitware.com/vtk/vtk.git --branch v9.3.0 --depth 1
         mkdir vtk/build && cd vtk/build
         
         cmake -GNinja \
-          -DVTK_GROUP_QT=ON \
+          -DVTK_GROUP_ENABLE_Qt=YES \
           -DVTK_QT_VERSION=6 \
           -DVTK_BUILD_TESTING=OFF \
           -DVTK_WRAP_PYTHON=OFF \
           -DVTK_MODULE_ENABLE_VTK_GUISupportQt=YES \
+          -DVTK_MODULE_ENABLE_VTK_RenderingQt=YES \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_INSTALL_PREFIX=/usr/local \
           ..
         
-        ninja
-        sudo ninja install --verbose
+        ninja -j$(nproc)
+        sudo ninja install
         sudo ldconfig
 
-    # 5. Проверка установки VTK
+    # 4. Проверка установки VTK (расширенная)
     - name: Verify VTK installation
       run: |
-        echo "=== Checking VTK installation ==="
-        echo "Searching for VTK files..."
-        sudo find /usr/local -name "VTKConfigVersion.cmake" 2>/dev/null || echo "VTK not found in /usr/local"
+        echo "=== VTK Installation Verification ==="
+        echo "Checking /usr/local/lib/cmake/vtk-9.3:"
+        ls -la /usr/local/lib/cmake/vtk-9.3 || echo "VTK directory missing!"
         
-        echo "Contents of /usr/local/lib/cmake:"
-        ls -la /usr/local/lib/cmake || echo "Directory not found"
+        echo "Checking critical files:"
+        [ -f "/usr/local/lib/cmake/vtk-9.3/VTKConfigVersion.cmake" ] && \
+          echo "VTKConfigVersion.cmake found" || \
+          { echo "ERROR: VTKConfigVersion.cmake missing!"; exit 1; }
         
-        if [ -f "/usr/local/lib/cmake/vtk-9.3/VTKConfigVersion.cmake" ]; then
-          echo "=== VTK Version ==="
-          grep "VTK_VERSION" /usr/local/lib/cmake/vtk-9.3/VTKConfigVersion.cmake
-          echo "Installed VTK components:"
-          ls /usr/local/lib/cmake/vtk-9.3 | grep Qt
-          echo "GUISupportQt libraries:"
-          ls /usr/local/lib/libvtkGUISupportQt* || echo "GUISupportQt not found!"
-        else
-          echo "ERROR: VTK installation failed!"
-          exit 1
-        fi
+        [ -f "/usr/local/lib/cmake/vtk-9.3/VTKTargets.cmake" ] && \
+          echo "VTKTargets.cmake found" || \
+          { echo "ERROR: VTKTargets.cmake missing!"; exit 1; }
+        
+        echo "VTK version:"
+        grep "VTK_VERSION" /usr/local/lib/cmake/vtk-9.3/VTKConfigVersion.cmake
 
-    # 6. Установка PCL и GLEW (после VTK)
+    # 5. Установка PCL и GLEW
     - name: Install PCL and GLEW
       run: |
         sudo apt-get install -y \
-          libpcl-visualization1.14 \
+          libpcl-dev libpcl-visualization1.14 \
           libglew-dev
 
-    # 7. Проверка версий
-    - name: Verify other installations
-      run: |
-        echo "=== PCL ==="
-        dpkg -l | grep libpcl || echo "PCL not installed"
-        echo "=== GLEW ==="
-        dpkg -l | grep libglew || ls /usr/lib/x86_64-linux-gnu/libGLEW*
-
-    # 8. Сборка проекта
+    # 6. Сборка проекта
     - name: Build project
       run: |
         mkdir build && cd build
@@ -123,7 +102,7 @@ jobs:
         cmake --build . --parallel $(nproc)
         cpack -G DEB
 
-    # 9. Публикация результатов
+    # 7. Публикация результатов
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
