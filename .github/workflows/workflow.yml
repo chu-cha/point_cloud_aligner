@@ -11,8 +11,6 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
 
     - name: Generate commit hash tag
       id: tag
@@ -20,29 +18,23 @@ jobs:
         COMMIT_HASH=$(git rev-parse --short HEAD)
         echo "TAG_NAME=commit-$COMMIT_HASH" >> $GITHUB_ENV
 
-    # 1. Установка системных зависимостей (включая обязательные для VTK)
-    - name: Install core dependencies
+    # 1. Установка только необходимых компонентов Qt6
+    - name: Install minimal Qt6
       run: |
         sudo apt-get update
         sudo apt-get install -y \
-          git cmake build-essential \
-          qt6-base-dev libqt6opengl6-dev \
-          libxt-dev libgl1-mesa-dev \
-          ninja-build ccache \
-          libfreetype-dev libfontconfig-dev \
-          libboost-all-dev libeigen3-dev \
-          libhdf5-dev libjsoncpp-dev \
-          liblz4-dev liblzma-dev libtiff-dev
+          qt6-base-dev \
+          libqt6opengl6-dev
 
-    # 2. Полная очистка возможных предыдущих установок VTK
-    - name: Clean old VTK installations
+    # 2. Основные зависимости
+    - name: Install core dependencies
       run: |
-        sudo rm -rf /usr/local/include/vtk-* \
-                    /usr/local/lib/cmake/vtk-* \
-                    /usr/local/lib/libvtk* \
-                    ~/vtk
+        sudo apt-get install -y \
+          git cmake build-essential \
+          ninja-build ccache \
+          libgl1-mesa-dev
 
-    # 3. Сборка VTK с дополнительными модулями
+    # 3. Сборка VTK с минимальной Qt-интеграцией
     - name: Build and install VTK
       run: |
         git clone https://gitlab.kitware.com/vtk/vtk.git --branch v9.3.0 --depth 1
@@ -51,10 +43,11 @@ jobs:
         cmake -GNinja \
           -DVTK_GROUP_ENABLE_Qt=YES \
           -DVTK_QT_VERSION=6 \
+          -DVTK_MODULE_ENABLE_VTK_GUISupportQt=YES \
+          -DVTK_MODULE_ENABLE_VTK_GUISupportQtQuick=NO \
+          -DVTK_MODULE_ENABLE_VTK_RenderingQt=YES \
           -DVTK_BUILD_TESTING=OFF \
           -DVTK_WRAP_PYTHON=OFF \
-          -DVTK_MODULE_ENABLE_VTK_GUISupportQt=YES \
-          -DVTK_MODULE_ENABLE_VTK_RenderingQt=YES \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_INSTALL_PREFIX=/usr/local \
           ..
@@ -63,58 +56,27 @@ jobs:
         sudo ninja install
         sudo ldconfig
 
-    # 4. Проверка установки VTK (расширенная)
+    # 4. Проверка установки
     - name: Verify VTK installation
       run: |
-        echo "=== VTK Installation Verification ==="
-        echo "Checking /usr/local/lib/cmake/vtk-9.3:"
-        ls -la /usr/local/lib/cmake/vtk-9.3 || echo "VTK directory missing!"
-        
-        echo "Checking critical files:"
-        [ -f "/usr/local/lib/cmake/vtk-9.3/VTKConfigVersion.cmake" ] && \
-          echo "VTKConfigVersion.cmake found" || \
-          { echo "ERROR: VTKConfigVersion.cmake missing!"; exit 1; }
-        
-        [ -f "/usr/local/lib/cmake/vtk-9.3/VTKTargets.cmake" ] && \
-          echo "VTKTargets.cmake found" || \
-          { echo "ERROR: VTKTargets.cmake missing!"; exit 1; }
-        
-        echo "VTK version:"
-        grep "VTK_VERSION" /usr/local/lib/cmake/vtk-9.3/VTKConfigVersion.cmake
+        echo "Проверка основных модулей VTK:"
+        ls /usr/local/lib/libvtkGUISupportQt* || echo "Ошибка: GUISupportQt не найден"
+        [ -f "/usr/local/lib/cmake/vtk-9.3/VTKConfigVersion.cmake" ] || exit 1
 
-    # 5. Установка PCL и GLEW
-    - name: Install PCL and GLEW
-      run: |
-        sudo apt-get install -y \
-          libpcl-dev libpcl-visualization1.14 \
-          libglew-dev
-
-    # 6. Сборка проекта
+    # 5. Сборка проекта
     - name: Build project
       run: |
         mkdir build && cd build
         cmake .. \
           -DVTK_DIR=/usr/local/lib/cmake/vtk-9.3 \
-          -DQt6_DIR=/usr/lib/cmake/Qt6 \
-          -DPCL_DIR=/usr/share/pcl-1.14 \
-          -DGLEW_ROOT=/usr \
+          -DQt6_DIR=/usr/lib/x86_64-linux-gnu/cmake/Qt6 \
           -DCMAKE_BUILD_TYPE=Release
         cmake --build . --parallel $(nproc)
         cpack -G DEB
 
-    # 7. Публикация результатов
+    # 6. Публикация результатов
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: aligner-package-${{ env.TAG_NAME }}
-        path: build/aligner*.deb
-
-    - name: Create GitHub Release
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: ${{ env.TAG_NAME }}
-        name: "Release ${{ env.TAG_NAME }}"
-        files: build/aligner*.deb
-        generate_release_notes: true
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        path: build/*.deb
